@@ -1,0 +1,93 @@
+export JWT_SECRET='abc123abc1234'
+export LOG_LEVEL=DEBUG
+
+curl http://127.0.0.1:8080/auth -X POST -H "Content-Type: application/json" -d '{"email":"sample@email.com","password":"password"}'
+export TOKEN=`curl -d '{"email":"sample@email.com","password":"password"}' -H "Content-Type: application/json" -X POST localhost:8080/auth  | jq -r '.token'`
+
+curl --request GET 'http://127.0.0.1:8080/contents' -H "Authorization: Bearer ${TOKEN}" | jq .
+
+
+
+curl http://127.0.0.1:8080/
+returns "Healthy"
+
+curl http://127.0.0.1:80/auth -X POST -H "Content-Type: application/json" -d '{"email":"sample@email.com","password":"password"}'
+export TOKEN=`curl -d '{"email":"sample@email.com","password":"password"}' -H "Content-Type: application/json" -X POST localhost:80/auth  | jq -r '.token'`
+
+curl --request GET 'http://127.0.0.1:80/contents' -H "Authorization: Bearer ${TOKEN}" | jq .
+
+docker run -p 80:8080 --env-file=env_file jwt-api-test 
+
+return jwt.encode(payload, JWT_SECRET, algorithm='HS256')
+AttributeError: module 'jwt' has no attribute 'encode'
+
+
+# TO RUN GUNICORN LOCALLY:
+FROM python:stretch
+
+COPY . /app
+WORKDIR /app
+
+RUN pip install --upgrade pip
+RUN pip install flask
+
+ENTRYPOINT ["python", "main.py"]
+
+# # TO RUN GUNICORN FROM DOCKER:
+# FROM python:stretch
+
+# COPY . /app
+# WORKDIR /app
+
+# RUN pip install --upgrade pip
+# RUN pip install -r requirements.txt
+
+# ENTRYPOINT [ "gunicorn", "-b", ":8080", "main:APP" ] 
+____________________________________________________________________________
+Set an environment variable ACCOUNT_ID to the value of your AWS account id. You can do this with awscli:
+>> ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+>> echo $ACCOUNT_ID
+returns --> xxxxxxxxxxxx
+
+Create a role policy document that allows the actions "eks:Describe*" and "ssm:GetParameters". 
+You can do this by setting an environment variable with the role policy:
+>> TRUST="{ \"Version\": \"2012-10-17\", \"Statement\": [ { \"Effect\": \"Allow\", \"Principal\": { \"AWS\": \"arn:aws:iam::${ACCOUNT_ID}:root\" }, \"Action\": \"sts:AssumeRole\" } ] }"
+returns --> { "Version": "2012-10-17", "Statement": [ { "Effect": "Allow", "Principal": { "AWS": "arn:aws:iam::xxxxxxxxxxxx:root" }, "Action": "sts:AssumeRole" } ] }
+
+Create a role named 'UdacityFlaskDeployCBKubectlRole' using the role policy document:
+>> aws iam create-role --role-name UdacityFlaskDeployCBKubectlRole --assume-role-policy-document "$TRUST" --output text --query 'Role.Arn'
+
+Create a role policy document that also allows the actions "eks:Describe*" and "ssm:GetParameters". You can create the document in your tmp directory:
+>> echo '{ "Version": "2012-10-17", "Statement": [ { "Effect": "Allow", "Action": [ "eks:Describe*", "ssm:GetParameters" ], "Resource": "*" } ] }' > /tmp/iam-role-policy
+opening /tmp/iam-role-policy returns -->
+export TOKEN=`curl -d '{"email":"<EMAIL>","password":"<PASSWORD>"}' -H "Content-Type: application/json" -X POST <EXTERNAL-IP URL>/auth  | jq -r '.token'`
+curl --request GET '<EXTERNAL-IP URL>/contents' -H "Authorization: Bearer ${TOKEN}" | jq 
+
+Attach the policy to the 'UdacityFlaskDeployCBKubectlRole'. You can do this using awscli:
+>> aws iam put-role-policy --role-name UdacityFlaskDeployCBKubectlRole --policy-name eks-describe --policy-document file:///tmp/iam-role-policy
+
+You have now created a role named 'UdacityFlaskDeployCBKubectlRole'!
+
+Grant the role access to the cluster. The 'aws-auth ConfigMap' is used to grant role based access control to your cluster.
+Get the current configmap and save it to a file:
+>> kubectl get -n kube-system configmap/aws-auth -o yaml > /tmp/aws-auth-patch.yml
+
+In the data/mapRoles section of this document add, replacing <ACCOUNT_ID> with your account id:
+  - rolearn: arn:aws:iam::<ACCOUNT_ID>:role/UdacityFlaskDeployCBKubectlRole
+    username: build
+    groups:
+      - system:masters
+
+>> sublime /tmp/aws-auth-patch.yml 
+
+Now update your cluster's configmap:
+>> kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch.yml)"
+
+____________________________________________________________________________
+Put secret into AWS Parameter Store
+aws ssm put-parameter --name JWT_SECRET --value "abc123abc1234" --type SecureString
+
+export TOKEN=`curl -d '{"email":"<EMAIL>","password":"PASSWORD"}' -H "Content-Type: application/json" -X POST <"afef04aa3790511ea89b20a01a3727d9-400615932.us-west-2.elb.amazonaws.com">/auth  | jq -r '.token'`
+
+curl --request GET '<EXTERNAL-IP URL>/contents' -H "Authorization: Bearer ${TOKEN}" | jq 
+
